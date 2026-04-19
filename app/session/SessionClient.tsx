@@ -20,22 +20,93 @@ export function SessionClient({ target, presence }: SessionClientProps) {
   const hasStarted = useRef(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const shouldStop = useRef(false);
-  const hasAutoPlayed = useRef(false);
+  const paraBuffer = useRef('');
+  const audioQueue = useRef<Promise<string | null>[]>([]);
+  const draining = useRef(false);
 
-  // Cancel audio when navigating away
   useEffect(() => () => {
     shouldStop.current = true;
     currentAudio.current?.pause();
   }, []);
 
-  // Auto-play once streaming completes
-  useEffect(() => {
-    if (!streaming && sessionText && !hasAutoPlayed.current) {
-      hasAutoPlayed.current = true;
-      playSession();
+  // Fire a TTS request immediately, return a promise of a blob URL
+  function ttsRequest(text: string): Promise<string | null> {
+    return fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.trim() }),
+    })
+      .then(r => r.ok ? r.blob().then(b => URL.createObjectURL(b)) : null)
+      .catch(() => null);
+  }
+
+  // Add a paragraph to the queue and start draining if idle
+  function enqueue(text: string) {
+    if (text.trim().length < 30) return;
+    audioQueue.current.push(ttsRequest(text));
+    if (!draining.current) drain();
+  }
+
+  // Play queued audio segments in order
+  async function drain() {
+    draining.current = true;
+    setAudioState('loading');
+    while (audioQueue.current.length > 0) {
+      if (shouldStop.current) break;
+      const url = await audioQueue.current.shift()!;
+      if (!url || shouldStop.current) continue;
+      setAudioState('playing');
+      await new Promise<void>(resolve => {
+        const audio = new Audio(url);
+        currentAudio.current = audio;
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+        audio.play().catch(() => resolve());
+      });
+      URL.revokeObjectURL(url);
+      currentAudio.current = null;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streaming]);
+    draining.current = false;
+    if (!shouldStop.current) setAudioState('done');
+  }
+
+  function stopPlayback() {
+    shouldStop.current = true;
+    currentAudio.current?.pause();
+    currentAudio.current = null;
+    audioQueue.current = [];
+    draining.current = false;
+    setAudioState('idle');
+  }
+
+  // "Again" sends the full text as one request — acceptable wait for a replay
+  async function playAgain() {
+    shouldStop.current = false;
+    setAudioState('loading');
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: sessionText }),
+      });
+      if (!res.ok) { setAudioState('error'); return; }
+      const url = URL.createObjectURL(await res.blob());
+      if (shouldStop.current) return;
+      setAudioState('playing');
+      await new Promise<void>(resolve => {
+        const audio = new Audio(url);
+        currentAudio.current = audio;
+        audio.onended = () => resolve();
+        audio.onerror = () => resolve();
+        audio.play().catch(() => resolve());
+      });
+      URL.revokeObjectURL(url);
+      currentAudio.current = null;
+      if (!shouldStop.current) setAudioState('done');
+    } catch {
+      setAudioState('error');
+    }
+  }
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -49,21 +120,35 @@ export function SessionClient({ target, presence }: SessionClientProps) {
           body: JSON.stringify({ target, presence }),
         });
 
-        if (!response.ok || !response.body) throw new Error('Session request failed');
+        if (!response.ok || !response.body) throw new Error();
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let fullText = '';
+        let full = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
-          fullText += chunk;
-          setSessionText(fullText);
+          full += chunk;
+          paraBuffer.current += chunk;
+          setSessionText(full);
+
+          // Fire TTS for each complete paragraph as it arrives
+          const parts = paraBuffer.current.split('\n\n');
+          if (parts.length > 1) {
+            for (let i = 0; i < parts.length - 1; i++) enqueue(parts[i]);
+            paraBuffer.current = parts[parts.length - 1];
+          }
         }
 
-        sessionStorage.setItem('tend_session', fullText);
+        // Flush any remaining text
+        if (paraBuffer.current.trim()) {
+          enqueue(paraBuffer.current);
+          paraBuffer.current = '';
+        }
+
+        sessionStorage.setItem('tend_session', full);
         setStreaming(false);
       } catch (err) {
         setError('Something went quiet. Please go back and try again.');
@@ -73,49 +158,8 @@ export function SessionClient({ target, presence }: SessionClientProps) {
     }
 
     runSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target, presence]);
-
-  async function playSession() {
-    shouldStop.current = false;
-    setAudioState('loading');
-
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: sessionText }),
-      });
-
-      if (!res.ok) { setAudioState('error'); return; }
-
-      const blob = await res.blob();
-      if (shouldStop.current) return;
-
-      const url = URL.createObjectURL(blob);
-      setAudioState('playing');
-
-      await new Promise<void>((resolve) => {
-        const audio = new Audio(url);
-        currentAudio.current = audio;
-        audio.onended = () => resolve();
-        audio.onerror = () => resolve();
-        audio.play().catch(() => resolve());
-      });
-
-      URL.revokeObjectURL(url);
-      currentAudio.current = null;
-      if (!shouldStop.current) setAudioState('done');
-    } catch {
-      setAudioState('error');
-    }
-  }
-
-  function stopPlayback() {
-    shouldStop.current = true;
-    currentAudio.current?.pause();
-    currentAudio.current = null;
-    setAudioState('idle');
-  }
 
   if (error) {
     return (
@@ -137,14 +181,9 @@ export function SessionClient({ target, presence }: SessionClientProps) {
     <main className="min-h-screen flex flex-col items-center px-6 py-16 animate-fade-in">
       <div className="w-full max-w-sm space-y-10">
 
-        {/* Top bar — listen control, shown once streaming is done */}
-        {!streaming && sessionText && (
+        {/* Audio control — top right */}
+        {sessionText && (
           <div className="flex justify-end animate-fade-in">
-            {audioState === 'idle' && (
-              <button onClick={playSession} className="text-xs text-stone/60 hover:text-stone transition-colors duration-200">
-                listen
-              </button>
-            )}
             {audioState === 'loading' && (
               <span className="text-xs text-stone/40 animate-pulse">preparing...</span>
             )}
@@ -154,8 +193,13 @@ export function SessionClient({ target, presence }: SessionClientProps) {
               </button>
             )}
             {audioState === 'done' && (
-              <button onClick={playSession} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
+              <button onClick={playAgain} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
                 again
+              </button>
+            )}
+            {audioState === 'idle' && !streaming && (
+              <button onClick={playAgain} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
+                listen
               </button>
             )}
             {audioState === 'error' && (
