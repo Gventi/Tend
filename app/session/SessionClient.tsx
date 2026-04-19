@@ -127,6 +127,33 @@ export function SessionClient({ target, presence }: SessionClientProps) {
     <main className="min-h-screen flex flex-col items-center px-6 py-16 animate-fade-in">
       <div className="w-full max-w-sm space-y-10">
 
+        {/* Top bar — listen control, shown once streaming is done */}
+        {!streaming && sessionText && (
+          <div className="flex justify-end animate-fade-in">
+            {audioState === 'idle' && (
+              <button onClick={playSession} className="text-xs text-stone/60 hover:text-stone transition-colors duration-200">
+                listen
+              </button>
+            )}
+            {audioState === 'loading' && (
+              <span className="text-xs text-stone/40 animate-pulse">preparing...</span>
+            )}
+            {audioState === 'playing' && (
+              <button onClick={stopPlayback} className="text-xs text-stone/60 hover:text-stone transition-colors duration-200 uppercase tracking-widest">
+                stop
+              </button>
+            )}
+            {audioState === 'done' && (
+              <button onClick={playSession} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
+                again
+              </button>
+            )}
+            {audioState === 'error' && (
+              <span className="text-xs text-stone/40">voice unavailable</span>
+            )}
+          </div>
+        )}
+
         {streaming && !sessionText && (
           <p className="text-stone text-sm animate-pulse">settling in...</p>
         )}
@@ -141,43 +168,7 @@ export function SessionClient({ target, presence }: SessionClientProps) {
         )}
 
         {!streaming && sessionText && (
-          <div className="pt-8 space-y-5 animate-fade-in">
-            {/* Audio controls */}
-            <div className="flex items-center gap-4">
-              {audioState === 'idle' && (
-                <button
-                  onClick={playSession}
-                  className="text-sm text-stone hover:text-ink transition-colors duration-200"
-                >
-                  listen
-                </button>
-              )}
-              {audioState === 'loading' && (
-                <span className="text-xs text-stone/60 animate-pulse">
-                  preparing voice...
-                </span>
-              )}
-              {audioState === 'playing' && (
-                <button
-                  onClick={stopPlayback}
-                  className="text-xs text-stone/60 hover:text-stone transition-colors duration-200 uppercase tracking-widest"
-                >
-                  stop
-                </button>
-              )}
-              {audioState === 'done' && (
-                <button
-                  onClick={playSession}
-                  className="text-xs text-stone/60 hover:text-stone transition-colors duration-200"
-                >
-                  listen again
-                </button>
-              )}
-              {audioState === 'error' && (
-                <span className="text-xs text-stone/50">voice unavailable</span>
-              )}
-            </div>
-
+          <div className="pt-8 animate-fade-in">
             <button
               onClick={() => router.push('/reflect')}
               className="block text-sm text-stone hover:text-ink underline underline-offset-4 transition-colors duration-200"

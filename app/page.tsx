@@ -31,6 +31,14 @@ export default function CheckInPage() {
           <p className="text-stone text-sm">a loving-kindness practice</p>
         </header>
 
+        <Link
+          href="/liminal"
+          className="block w-full py-3 text-center bg-sage/15 hover:bg-sage/25 border border-sage/30 text-ink text-sm tracking-wide rounded-sm transition-colors duration-200"
+        >
+          The Liminal Space
+          <span className="ml-2 text-xs text-stone/50">6–10 min</span>
+        </Link>
+
         <form onSubmit={handleSubmit} className="space-y-8">
           <fieldset className="space-y-3">
             <legend className="text-xs text-stone uppercase tracking-widest">
@@ -77,19 +85,6 @@ export default function CheckInPage() {
             Begin
           </button>
 
-          <div className="flex items-center gap-3 pt-1">
-            <div className="flex-1 h-px bg-stone/15" />
-            <span className="text-xs text-stone/40">or</span>
-            <div className="flex-1 h-px bg-stone/15" />
-          </div>
-
-          <Link
-            href="/liminal"
-            className="block w-full text-center py-3 text-sm text-stone hover:text-ink transition-colors duration-200"
-          >
-            The Liminal Space
-            <span className="ml-2 text-xs text-stone/40">6–10 min</span>
-          </Link>
         </form>
       </div>
     </main>
