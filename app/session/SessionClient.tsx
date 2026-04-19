@@ -20,12 +20,22 @@ export function SessionClient({ target, presence }: SessionClientProps) {
   const hasStarted = useRef(false);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const shouldStop = useRef(false);
+  const hasAutoPlayed = useRef(false);
 
   // Cancel audio when navigating away
   useEffect(() => () => {
     shouldStop.current = true;
     currentAudio.current?.pause();
   }, []);
+
+  // Auto-play once streaming completes
+  useEffect(() => {
+    if (!streaming && sessionText && !hasAutoPlayed.current) {
+      hasAutoPlayed.current = true;
+      playSession();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streaming]);
 
   useEffect(() => {
     if (hasStarted.current) return;

@@ -105,6 +105,14 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     streamPhase(phase);
   }, [phase, streamPhase, fetchIntention]);
 
+  // Auto-play once each component finishes streaming
+  useEffect(() => {
+    if (!streaming && text && phase !== 'intention' && phase !== 'complete') {
+      playCurrentPhase();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streaming]);
+
   useEffect(() => {
     setElapsed(0);
     if (phase === 'complete' || phase === 'intention') return;
