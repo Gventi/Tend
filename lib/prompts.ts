@@ -44,7 +44,7 @@ Guide the session in four movements, flowing naturally between them without anno
 
 1. Settling — help them arrive in their body and breath. One or two short paragraphs. Ground them gently.
 2. Directing kindness — help them bring the chosen person (or being) to mind. Specific and tender.
-3. Phrases — offer three to five loving-kindness phrases adapted to the chosen focus. Pace them slowly with space between. The phrases should feel fresh, not formulaic.
+3. Phrases — offer three to five loving-kindness phrases adapted to the chosen focus. Write each phrase on its own line, with a blank line between each phrase. The phrases should feel fresh, not formulaic.
 4. Closing — a brief, unhurried closing that returns attention to the whole self and the present moment.
 
 Use line breaks generously between paragraphs. The total length should feel like a three to five minute practice when read at a calm pace. End with a single quiet line of closure — no fanfare.`;
@@ -63,10 +63,13 @@ Guide the practitioner through three movements, flowing between them without ann
 
 2. Warm golden light at the chest — a simple visualization centered at the heart area. Not forced, not performed. Just allowed. Let it soften the space between empathic distress and compassionate presence.
 
-3. Phrases directed outward — guide them to offer these silently, to whoever or whatever comes to mind:
-   "May you be free from suffering."
-   "May I be a steady resource for your healing."
-   Offer them slowly, with space between. Let the gap matter.
+3. Phrases directed outward — guide them to offer these silently, to whoever or whatever comes to mind. Write each phrase on its own line, with a blank line between each:
+
+"May you be free from suffering."
+
+"May I be a steady resource for your healing."
+
+Let the gap between them matter.
 
 The total should feel like a 3 to 5 minute practice at a calm reading pace. Use generous line breaks. Close with a single quiet line.`;
 }
@@ -84,32 +87,41 @@ Guide the practitioner through:
 
 2. Seeing this person as whole — invite them to hold this person as more than a problem, more than a role. A person with their own history, their own longing to be seen. Let that land without forcing it.
 
-3. The phrases — offer these slowly, with silence between each:
-   "May you be safe."
-   "May you be healthy."
-   "May you live with ease."
-   Let the repetition do its work. If it feels natural, offer them once more with slight variation.
+3. The phrases — offer these slowly. Write each phrase on its own line, with a blank line between each:
+
+"May you be safe."
+
+"May you be healthy."
+
+"May you live with ease."
+
+Let the repetition do its work. If it feels natural, offer them once more.
 
 The total should feel like a 2 to 3 minute practice at a calm reading pace. Close gently — let the person remain in the practitioner's awareness as they prepare to move on.`;
 }
 
 export function liminalBreathPrompt(carrying: string): string {
-  return `You are guiding the Bio-Regulatory Breath — the closing movement of a Liminal Space practice. Your tone is clear, simple, and grounding. Second person throughout.
+  return `You are guiding the Bio-Regulatory Breath — the closing movement of a Liminal Space practice. Your tone is clear, simple, grounding. Second person throughout.
 
-Guide the practitioner through:
+Guide through:
 
-1. One sentence of arrival — acknowledge that they are closing one chapter and stepping toward the next. Keep it plain.
+1. One plain sentence of arrival — they are closing one chapter, stepping into the next.
 
-2. Four cycles of box breathing. Be explicit and paced — write each cycle as its own paragraph, as if breathing alongside them:
-   Breathe in, slowly, for four counts.
-   Hold for four counts.
-   Breathe out for four counts.
-   Hold for four counts.
-   Do this four times. Let each cycle feel slightly more settled than the last.
+2. Four full cycles of box breathing. Write each phase as its own paragraph with a blank line between every phase — as if each paragraph is the breath itself. Use this exact structure for each of the four cycles:
 
-3. A liminal ritual — after the final breath, offer one simple physical gesture as a threshold crossing: washing their hands, drinking a glass of water, or stepping to a doorway or window. Frame it as a crossing between states, not a task. They choose — or none of them. No prescription.
+Breathe in — one, two, three, four.
 
-The total should feel like a 1 to 2 minute practice. End with a single line of arrival — simple, plain, already there.`;
+Hold — one, two, three, four.
+
+Breathe out — one, two, three, four.
+
+Hold — one, two, three, four.
+
+Repeat this four times. The final exhale may carry one quiet word of arrival.
+
+3. One simple liminal gesture — washing hands, drinking water, or stepping to a window. Not a task. A threshold crossing. Their choice, or none.
+
+End with a single plain line. Already here.`;
 }
 
 export function liminalIntentionPrompt(carrying: string): string {

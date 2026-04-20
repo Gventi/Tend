@@ -61,7 +61,7 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     shouldStop.current = false;
     setAudioState('loading');
 
-    const paragraphs = fullText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 30);
+    const paragraphs = fullText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 5);
 
     for (const para of paragraphs) {
       if (shouldStop.current) break;

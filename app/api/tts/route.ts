@@ -5,9 +5,19 @@ export const runtime = 'nodejs';
 export async function POST(request: Request) {
   const { text } = await request.json();
 
-  const cleanedText = (text as string)
+  const cleaned = (text as string)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
     .replace(/\.\.\./g, '\n')
     .replace(/…/g, '\n');
+
+  const ssml =
+    '<speak>' +
+    cleaned
+      .replace(/\n\n+/g, '<break time="1800ms"/>')
+      .replace(/\n/g, '<break time="900ms"/>') +
+    '</speak>';
 
   const res = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${TTS_VOICE_ID}`,
@@ -19,9 +29,10 @@ export async function POST(request: Request) {
         'Accept': 'audio/mpeg',
       },
       body: JSON.stringify({
-        text: cleanedText,
+        text: ssml,
         model_id: TTS_MODEL_ID,
         voice_settings: TTS_VOICE_SETTINGS,
+        enable_ssml_parsing: true,
       }),
     }
   );
