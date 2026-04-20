@@ -42,13 +42,11 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
   const activePhaseRef = useRef<Phase | null>(null);
   const shouldStop = useRef(false);
   const phaseTextRef = useRef('');
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const audioEl = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => () => {
     shouldStop.current = true;
-    try { sourceRef.current?.stop(); } catch {}
-    audioCtxRef.current?.close();
+    audioEl.current?.pause();
   }, []);
 
   // Auto-play when streaming completes
@@ -59,38 +57,16 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streaming]);
 
-  function getAudioCtx(): AudioContext {
-    if (!audioCtxRef.current) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const Ctx = window.AudioContext ?? (window as any).webkitAudioContext;
-      audioCtxRef.current = new Ctx();
-    }
-    return audioCtxRef.current;
-  }
-
-  async function resumeCtx(ctx: AudioContext) {
-    if (ctx.state === 'running') return true;
-    try {
-      await ctx.resume();
-      // Safari may need a tick after resume
-      if (ctx.state !== 'running') await new Promise(r => setTimeout(r, 80));
-    } catch {}
-    return ctx.state === 'running';
+  function getAudioEl(): HTMLAudioElement {
+    if (!audioEl.current) audioEl.current = new Audio();
+    return audioEl.current;
   }
 
   async function playByParagraph(fullText: string) {
     shouldStop.current = false;
     setAudioState('loading');
 
-    const ctx = getAudioCtx();
-    const running = await resumeCtx(ctx);
-
-    // iOS/Safari blocks auto-play — fall back to the listen button
-    if (!running) {
-      setAudioState('idle');
-      return;
-    }
-
+    const audio = getAudioEl();
     const paragraphs = fullText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 5);
 
     for (const para of paragraphs) {
@@ -103,38 +79,29 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
         });
         if (!res.ok || shouldStop.current) continue;
 
-        const arrayBuffer = await res.arrayBuffer();
+        const blob = await res.blob();
         if (shouldStop.current) continue;
 
-        // Use callback form — Safari's promise-based decodeAudioData is unreliable
-        let audioBuf: AudioBuffer;
-        try {
-          audioBuf = await new Promise<AudioBuffer>((resolve, reject) =>
-            ctx.decodeAudioData(arrayBuffer, resolve, reject)
-          );
-        } catch {
-          continue;
-        }
-        if (shouldStop.current) continue;
-
-        // iOS may have suspended the context during the fetch — re-resume
-        if (ctx.state !== 'running') {
-          const ok = await resumeCtx(ctx);
-          if (!ok || shouldStop.current) continue;
-        }
-
+        const url = URL.createObjectURL(blob);
+        audio.src = url;
         setAudioState('playing');
 
+        let blocked = false;
         await new Promise<void>(resolve => {
-          const source = ctx.createBufferSource();
-          sourceRef.current = source;
-          source.buffer = audioBuf;
-          source.connect(ctx.destination);
-          source.onended = () => resolve();
-          source.start();
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          audio.play().catch(e => {
+            if ((e as DOMException)?.name === 'NotAllowedError') blocked = true;
+            resolve();
+          });
         });
 
-        sourceRef.current = null;
+        URL.revokeObjectURL(url);
+
+        if (blocked) {
+          setAudioState('idle');
+          return;
+        }
       } catch {
         continue;
       }
@@ -145,8 +112,7 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
 
   function stopPlayback() {
     shouldStop.current = true;
-    try { sourceRef.current?.stop(); } catch {}
-    sourceRef.current = null;
+    audioEl.current?.pause();
     setAudioState('idle');
   }
 
