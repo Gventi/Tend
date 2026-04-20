@@ -42,64 +42,54 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
   const activePhaseRef = useRef<Phase | null>(null);
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const shouldStop = useRef(false);
-  const paraBuffer = useRef('');
-  const pendingParas = useRef<string[]>([]);
-  const audioQueue = useRef<Promise<string | null>[]>([]);
-  const draining = useRef(false);
-  const inFlight = useRef(0);
-  const MAX_IN_FLIGHT = 2;
-  const phaseTextRef = useRef(''); // stable ref for playAgain
+  const phaseTextRef = useRef('');
 
   useEffect(() => () => {
     shouldStop.current = true;
     currentAudio.current?.pause();
   }, []);
 
-  function ttsRequest(t: string): Promise<string | null> {
-    inFlight.current++;
-    return fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: t.trim() }),
-    })
-      .then(r => r.ok ? r.blob().then(b => URL.createObjectURL(b)) : null)
-      .catch(() => null)
-      .finally(() => { inFlight.current--; maybeFireNext(); });
-  }
-
-  function maybeFireNext() {
-    while (inFlight.current < MAX_IN_FLIGHT && pendingParas.current.length > 0) {
-      const next = pendingParas.current.shift()!;
-      audioQueue.current.push(ttsRequest(next));
+  // Auto-play when streaming completes
+  useEffect(() => {
+    if (!streaming && text && phase !== 'intention' && phase !== 'complete') {
+      playByParagraph(phaseTextRef.current);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streaming]);
 
-  function enqueue(t: string) {
-    if (t.trim().length < 30) return;
-    pendingParas.current.push(t.trim());
-    maybeFireNext();
-    if (!draining.current) drain();
-  }
-
-  async function drain() {
-    draining.current = true;
+  async function playByParagraph(fullText: string) {
+    shouldStop.current = false;
     setAudioState('loading');
-    while (audioQueue.current.length > 0) {
+
+    const paragraphs = fullText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 30);
+
+    for (const para of paragraphs) {
       if (shouldStop.current) break;
-      const url = await audioQueue.current.shift()!;
-      if (!url || shouldStop.current) continue;
-      setAudioState('playing');
-      await new Promise<void>(resolve => {
-        const audio = new Audio(url);
-        currentAudio.current = audio;
-        audio.onended = () => resolve();
-        audio.onerror = () => resolve();
-        audio.play().catch(() => resolve());
-      });
-      URL.revokeObjectURL(url);
-      currentAudio.current = null;
+      try {
+        const res = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: para }),
+        });
+        if (!res.ok || shouldStop.current) continue;
+
+        const url = URL.createObjectURL(await res.blob());
+        setAudioState('playing');
+
+        await new Promise<void>(resolve => {
+          const audio = new Audio(url);
+          currentAudio.current = audio;
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          audio.play().catch(() => resolve());
+        });
+        URL.revokeObjectURL(url);
+        currentAudio.current = null;
+      } catch {
+        continue;
+      }
     }
-    draining.current = false;
+
     if (!shouldStop.current) setAudioState('done');
   }
 
@@ -107,37 +97,7 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     shouldStop.current = true;
     currentAudio.current?.pause();
     currentAudio.current = null;
-    audioQueue.current = [];
-    draining.current = false;
     setAudioState('idle');
-  }
-
-  async function playAgain() {
-    shouldStop.current = false;
-    setAudioState('loading');
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phaseTextRef.current }),
-      });
-      if (!res.ok) { setAudioState('error'); return; }
-      const url = URL.createObjectURL(await res.blob());
-      if (shouldStop.current) return;
-      setAudioState('playing');
-      await new Promise<void>(resolve => {
-        const audio = new Audio(url);
-        currentAudio.current = audio;
-        audio.onended = () => resolve();
-        audio.onerror = () => resolve();
-        audio.play().catch(() => resolve());
-      });
-      URL.revokeObjectURL(url);
-      currentAudio.current = null;
-      if (!shouldStop.current) setAudioState('done');
-    } catch {
-      setAudioState('error');
-    }
   }
 
   const streamPhase = useCallback(async (p: Phase) => {
@@ -145,11 +105,6 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     activePhaseRef.current = p;
     setText('');
     phaseTextRef.current = '';
-    paraBuffer.current = '';
-    pendingParas.current = [];
-    audioQueue.current = [];
-    draining.current = false;
-    inFlight.current = 0;
     shouldStop.current = false;
     setAudioState('idle');
     setStreaming(true);
@@ -172,19 +127,7 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
         if (done) break;
         const chunk = decoder.decode(value, { stream: true });
         full += chunk;
-        paraBuffer.current += chunk;
         setText(full);
-
-        const parts = paraBuffer.current.split('\n\n');
-        if (parts.length > 1) {
-          for (let i = 0; i < parts.length - 1; i++) enqueue(parts[i]);
-          paraBuffer.current = parts[parts.length - 1];
-        }
-      }
-
-      if (paraBuffer.current.trim()) {
-        enqueue(paraBuffer.current);
-        paraBuffer.current = '';
       }
 
       phaseTextRef.current = full;
@@ -259,13 +202,13 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
                       stop
                     </button>
                   )}
-                  {(audioState === 'done') && (
-                    <button onClick={playAgain} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
+                  {audioState === 'done' && (
+                    <button onClick={() => playByParagraph(phaseTextRef.current)} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
                       again
                     </button>
                   )}
                   {audioState === 'idle' && !streaming && (
-                    <button onClick={playAgain} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
+                    <button onClick={() => playByParagraph(phaseTextRef.current)} className="text-xs text-stone/50 hover:text-stone transition-colors duration-200">
                       listen
                     </button>
                   )}
