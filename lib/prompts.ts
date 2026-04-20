@@ -1,6 +1,6 @@
 export const MODEL_NAME = 'gemini-3.1-flash-lite-preview';
 
-export const TTS_VOICE_ID = 'XrExE9yKIg1WjnnlVkGX'; // Matilda — warm, calm
+export const TTS_VOICE_ID = '3FP8zog6uhdEdir09I9N'; // Kai
 export const TTS_MODEL_ID = 'eleven_turbo_v2_5';
 export const TTS_VOICE_SETTINGS = {
   stability: 0.6,
