@@ -49,6 +49,10 @@ export function LiminalEntryClient() {
             Enter
           </button>
         </form>
+
+        <p className="text-xs text-stone/40 leading-relaxed">
+          Early access — no accounts, no storage. Please avoid names or identifying details: what you share is processed by third-party AI services.
+        </p>
       </div>
     </main>
   );
