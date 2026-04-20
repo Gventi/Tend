@@ -270,6 +270,12 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
               >
                 back to Tend
               </button>
+              <p className="text-xs text-stone/40 pt-2">
+                Keep the voice going —{' '}
+                <a href="mailto:garnet.lyndon@gmail.com" className="underline underline-offset-4 hover:text-stone transition-colors duration-200">
+                  donate
+                </a>
+              </p>
             </div>
           </div>
         )}

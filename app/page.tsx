@@ -90,6 +90,13 @@ export default function CheckInPage() {
         <p className="text-xs text-stone/40 leading-relaxed">
           Early access — no accounts, no storage. Please avoid names or identifying details: what you share is processed by third-party AI services.
         </p>
+
+        <p className="text-xs text-stone/40">
+          Keep the voice going —{' '}
+          <a href="mailto:garnet.lyndon@gmail.com" className="underline underline-offset-4 hover:text-stone transition-colors duration-200">
+            donate
+          </a>
+        </p>
       </div>
     </main>
   );

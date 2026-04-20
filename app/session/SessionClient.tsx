@@ -154,10 +154,16 @@ export function SessionClient({ target, presence }: SessionClientProps) {
         )}
 
         {!streaming && sessionText && (
-          <div className="pt-8 animate-fade-in">
+          <div className="pt-8 space-y-4 animate-fade-in">
             <button onClick={() => router.push('/reflect')} className="block text-sm text-stone hover:text-ink underline underline-offset-4 transition-colors duration-200">
               Continue to reflection
             </button>
+            <p className="text-xs text-stone/40">
+              Keep the voice going —{' '}
+              <a href="mailto:garnet.lyndon@gmail.com" className="underline underline-offset-4 hover:text-stone transition-colors duration-200">
+                donate
+              </a>
+            </p>
           </div>
         )}
       </div>
