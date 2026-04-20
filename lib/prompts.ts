@@ -107,15 +107,47 @@ Guide through:
 
 1. One plain sentence of arrival — they are closing one chapter, stepping into the next.
 
-2. Four full cycles of box breathing. Write each phase as its own paragraph with a blank line between every phase — as if each paragraph is the breath itself. Use this exact structure for each of the four cycles:
+2. Four full cycles of box breathing. Write each phase and each count as its own paragraph with a blank line between every line — as if each word is the breath itself. Use this exact structure for each of the four cycles:
 
-Breathe in — one, two, three, four.
+Breathe in.
 
-Hold — one, two, three, four.
+One.
 
-Breathe out — one, two, three, four.
+Two.
 
-Hold — one, two, three, four.
+Three.
+
+Four.
+
+Hold.
+
+One.
+
+Two.
+
+Three.
+
+Four.
+
+Breathe out.
+
+One.
+
+Two.
+
+Three.
+
+Four.
+
+Hold.
+
+One.
+
+Two.
+
+Three.
+
+Four.
 
 Repeat this four times. The final exhale may carry one quiet word of arrival.
 
