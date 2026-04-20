@@ -40,13 +40,15 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
   const [audioState, setAudioState] = useState<AudioState>('idle');
 
   const activePhaseRef = useRef<Phase | null>(null);
-  const currentAudio = useRef<HTMLAudioElement | null>(null);
   const shouldStop = useRef(false);
   const phaseTextRef = useRef('');
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
 
   useEffect(() => () => {
     shouldStop.current = true;
-    currentAudio.current?.pause();
+    try { sourceRef.current?.stop(); } catch {}
+    audioCtxRef.current?.close();
   }, []);
 
   // Auto-play when streaming completes
@@ -57,9 +59,25 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [streaming]);
 
+  function getAudioCtx(): AudioContext {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return audioCtxRef.current;
+  }
+
   async function playByParagraph(fullText: string) {
     shouldStop.current = false;
     setAudioState('loading');
+
+    const ctx = getAudioCtx();
+    try { await ctx.resume(); } catch {}
+
+    // iOS blocks auto-play — context stays suspended without a user gesture
+    if (ctx.state !== 'running') {
+      setAudioState('idle');
+      return;
+    }
 
     const paragraphs = fullText.split(/\n+/).map(p => p.trim()).filter(p => p.length > 5);
 
@@ -73,18 +91,29 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
         });
         if (!res.ok || shouldStop.current) continue;
 
-        const url = URL.createObjectURL(await res.blob());
+        const arrayBuffer = await res.arrayBuffer();
+        if (shouldStop.current) continue;
+
+        let audioBuf: AudioBuffer;
+        try {
+          audioBuf = await ctx.decodeAudioData(arrayBuffer);
+        } catch {
+          continue;
+        }
+        if (shouldStop.current) continue;
+
         setAudioState('playing');
 
         await new Promise<void>(resolve => {
-          const audio = new Audio(url);
-          currentAudio.current = audio;
-          audio.onended = () => resolve();
-          audio.onerror = () => resolve();
-          audio.play().catch(() => resolve());
+          const source = ctx.createBufferSource();
+          sourceRef.current = source;
+          source.buffer = audioBuf;
+          source.connect(ctx.destination);
+          source.onended = () => resolve();
+          source.start();
         });
-        URL.revokeObjectURL(url);
-        currentAudio.current = null;
+
+        sourceRef.current = null;
       } catch {
         continue;
       }
@@ -95,8 +124,8 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
 
   function stopPlayback() {
     shouldStop.current = true;
-    currentAudio.current?.pause();
-    currentAudio.current = null;
+    try { sourceRef.current?.stop(); } catch {}
+    sourceRef.current = null;
     setAudioState('idle');
   }
 
