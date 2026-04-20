@@ -1,7 +1,13 @@
 export const MODEL_NAME = 'gemini-3.1-flash-lite-preview';
 
-export const TTS_MODEL_NAME = 'gemini-2.5-flash-preview-tts';
-export const TTS_VOICE = 'Sulafat'; // warm, calm — good for meditation
+export const TTS_VOICE_ID = 'XrExE9yKIg1WjnnlVkGX'; // Matilda — warm, calm
+export const TTS_MODEL_ID = 'eleven_turbo_v2_5';
+export const TTS_VOICE_SETTINGS = {
+  stability: 0.6,
+  similarity_boost: 0.75,
+  style: 0.0,
+  use_speaker_boost: true,
+};
 
 export const GENERATION_CONFIG = {
   temperature: 0.85,

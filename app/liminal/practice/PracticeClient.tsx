@@ -43,8 +43,11 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const shouldStop = useRef(false);
   const paraBuffer = useRef('');
+  const pendingParas = useRef<string[]>([]);
   const audioQueue = useRef<Promise<string | null>[]>([]);
   const draining = useRef(false);
+  const inFlight = useRef(0);
+  const MAX_IN_FLIGHT = 2;
   const phaseTextRef = useRef(''); // stable ref for playAgain
 
   useEffect(() => () => {
@@ -53,18 +56,28 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
   }, []);
 
   function ttsRequest(t: string): Promise<string | null> {
+    inFlight.current++;
     return fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: t.trim() }),
     })
       .then(r => r.ok ? r.blob().then(b => URL.createObjectURL(b)) : null)
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => { inFlight.current--; maybeFireNext(); });
+  }
+
+  function maybeFireNext() {
+    while (inFlight.current < MAX_IN_FLIGHT && pendingParas.current.length > 0) {
+      const next = pendingParas.current.shift()!;
+      audioQueue.current.push(ttsRequest(next));
+    }
   }
 
   function enqueue(t: string) {
     if (t.trim().length < 30) return;
-    audioQueue.current.push(ttsRequest(t));
+    pendingParas.current.push(t.trim());
+    maybeFireNext();
     if (!draining.current) drain();
   }
 
@@ -133,8 +146,10 @@ export function PracticeClient({ carrying }: PracticeClientProps) {
     setText('');
     phaseTextRef.current = '';
     paraBuffer.current = '';
+    pendingParas.current = [];
     audioQueue.current = [];
     draining.current = false;
+    inFlight.current = 0;
     shouldStop.current = false;
     setAudioState('idle');
     setStreaming(true);

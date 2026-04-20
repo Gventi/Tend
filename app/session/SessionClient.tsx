@@ -21,29 +21,40 @@ export function SessionClient({ target, presence }: SessionClientProps) {
   const currentAudio = useRef<HTMLAudioElement | null>(null);
   const shouldStop = useRef(false);
   const paraBuffer = useRef('');
+  const pendingParas = useRef<string[]>([]);
   const audioQueue = useRef<Promise<string | null>[]>([]);
   const draining = useRef(false);
+  const inFlight = useRef(0);
+  const MAX_IN_FLIGHT = 2;
 
   useEffect(() => () => {
     shouldStop.current = true;
     currentAudio.current?.pause();
   }, []);
 
-  // Fire a TTS request immediately, return a promise of a blob URL
   function ttsRequest(text: string): Promise<string | null> {
+    inFlight.current++;
     return fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: text.trim() }),
     })
       .then(r => r.ok ? r.blob().then(b => URL.createObjectURL(b)) : null)
-      .catch(() => null);
+      .catch(() => null)
+      .finally(() => { inFlight.current--; maybeFireNext(); });
   }
 
-  // Add a paragraph to the queue and start draining if idle
+  function maybeFireNext() {
+    while (inFlight.current < MAX_IN_FLIGHT && pendingParas.current.length > 0) {
+      const next = pendingParas.current.shift()!;
+      audioQueue.current.push(ttsRequest(next));
+    }
+  }
+
   function enqueue(text: string) {
     if (text.trim().length < 30) return;
-    audioQueue.current.push(ttsRequest(text));
+    pendingParas.current.push(text.trim());
+    maybeFireNext();
     if (!draining.current) drain();
   }
 
