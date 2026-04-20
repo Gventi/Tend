@@ -70,9 +70,21 @@ export function SessionClient({ target, presence }: SessionClientProps) {
 
   function getAudioCtx(): AudioContext {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Ctx = window.AudioContext ?? (window as any).webkitAudioContext;
+      audioCtxRef.current = new Ctx();
     }
     return audioCtxRef.current;
+  }
+
+  async function resumeCtx(ctx: AudioContext) {
+    if (ctx.state === 'running') return true;
+    try {
+      await ctx.resume();
+      // Safari may need a tick after resume
+      if (ctx.state !== 'running') await new Promise(r => setTimeout(r, 80));
+    } catch {}
+    return ctx.state === 'running';
   }
 
   async function playByParagraph(text: string) {
@@ -80,10 +92,10 @@ export function SessionClient({ target, presence }: SessionClientProps) {
     setAudioState('loading');
 
     const ctx = getAudioCtx();
-    try { await ctx.resume(); } catch {}
+    const running = await resumeCtx(ctx);
 
-    // iOS blocks auto-play — context stays suspended without a user gesture
-    if (ctx.state !== 'running') {
+    // iOS/Safari blocks auto-play — fall back to the listen button
+    if (!running) {
       setAudioState('idle');
       return;
     }
@@ -103,13 +115,22 @@ export function SessionClient({ target, presence }: SessionClientProps) {
         const arrayBuffer = await res.arrayBuffer();
         if (shouldStop.current) continue;
 
+        // Use callback form — Safari's promise-based decodeAudioData is unreliable
         let audioBuf: AudioBuffer;
         try {
-          audioBuf = await ctx.decodeAudioData(arrayBuffer);
+          audioBuf = await new Promise<AudioBuffer>((resolve, reject) =>
+            ctx.decodeAudioData(arrayBuffer, resolve, reject)
+          );
         } catch {
           continue;
         }
         if (shouldStop.current) continue;
+
+        // iOS may have suspended the context during the fetch — re-resume
+        if (ctx.state !== 'running') {
+          const ok = await resumeCtx(ctx);
+          if (!ok || shouldStop.current) continue;
+        }
 
         setAudioState('playing');
 
